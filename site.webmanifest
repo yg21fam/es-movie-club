@@ -1,0 +1,25 @@
+{
+  "name": "ES Movie Club 촬영 배치도",
+  "short_name": "ES Movie Club",
+  "description": "위에서 내려다본 바닥 그림 위에 카메라·배우·마이크·조명을 놓아 보는 도구",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#171a1f",
+  "theme_color": "#171a1f",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/"
+}
