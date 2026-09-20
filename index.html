@@ -86,7 +86,7 @@ button{cursor:pointer;background:none;border:0}
 /* ---------- header ---------- */
 .slate{
   flex:0 0 auto; display:flex; align-items:center; gap:10px;
-  padding:8px 12px; padding-top:calc(8px + env(safe-area-inset-top,0px));
+  padding:8px 12px; padding-top:max(8px, env(safe-area-inset-top,0px));
   background:var(--panel); border-bottom:1px solid var(--line);
 }
 .mark{display:flex;align-items:center;gap:8px;flex:0 0 auto}
@@ -233,7 +233,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   .tools{
     flex-direction:row;align-items:center;border-right:0;border-top:1px solid var(--line);
     overflow-x:auto;overflow-y:hidden;gap:4px;padding:5px 6px;
-    padding-bottom:calc(5px + env(safe-area-inset-bottom,0px));
+    padding-bottom:max(5px, env(safe-area-inset-bottom,0px));
     scrollbar-width:none;
   }
   .tools::-webkit-scrollbar{display:none}
@@ -735,7 +735,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     board.height = Math.max(1, Math.round(ch * dpr));
     draw();
   }
-  function isCompact() { return cw > 0 && cw < 700; }
+  function isCompact() { return cw > 0 && cw < 880; }   /* 모바일 레이아웃 기준과 같게 */
   /* minCellPx: 한 칸이 화면에서 이보다 작아지지 않게 한다.
      좁은 화면에서 도면 전체를 다 넣으면 칸이 손가락보다 작아지기 때문이다. */
   function fit(minCellPx) {
