@@ -733,9 +733,11 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     board.width = Math.max(1, Math.round(cw * dpr));
     board.height = Math.max(1, Math.round(ch * dpr));
-    draw();
+    if (autoFit) autoFitNow(); else draw();
   }
   function isCompact() { return cw > 0 && cw < 880; }   /* 모바일 레이아웃 기준과 같게 */
+  var autoFit = true;
+  function autoFitNow() { fit(isCompact() ? 36 : 0); }
   /* minCellPx: 한 칸이 화면에서 이보다 작아지지 않게 한다.
      좁은 화면에서 도면 전체를 다 넣으면 칸이 손가락보다 작아지기 때문이다. */
   function fit(minCellPx) {
@@ -749,6 +751,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     draw();
   }
   function zoomAt(factor, sx, sy) {
+    autoFit = false;
     var ns = Math.max(0.15, Math.min(5, view.s * factor));
     if (ns === view.s) return;
     view.tx = sx - (sx - view.tx) * (ns / view.s);
@@ -838,6 +841,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       var a = pointers[ids[0]], b = pointers[ids[1]];
       var d = Math.hypot(a.x - b.x, a.y - b.y);
       var c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      autoFit = false;
       if (pinch.d > 0) zoomAt(d / pinch.d, c.x, c.y);
       view.tx += c.x - pinch.c.x; view.ty += c.y - pinch.c.y;
       pinch = { d: d, c: c };
@@ -867,6 +871,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     }
     if (mode === 'pre-pan' && moved) { mode = 'pan'; willPlace = false; }
     if (mode === 'pan') {
+      autoFit = false;
       view.tx += sp.x - prev.x; view.ty += sp.y - prev.y;
       draw();
     }
@@ -1538,7 +1543,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     if (key === 'v') return setTool('select');
     if (key === 'e') return setTool('erase');
     if (key === 'm') return setTool('measure');
-    if (key === 'f') return fit();
+    if (key === 'f') { autoFit = true; autoFitNow(); return; }
     if (key >= '1' && key <= '9') {
       var idx = parseInt(key, 10) - 1;
       if (ORDER[idx]) setTool(ORDER[idx]);
@@ -1589,7 +1594,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   $('redo').onclick = redo;
   $('zin').onclick = function () { zoomAt(1.2, cw / 2, ch / 2); };
   $('zout').onclick = function () { zoomAt(1 / 1.2, cw / 2, ch / 2); };
-  $('zfit').onclick = function () { fit(); };
+  $('zfit').onclick = function () { autoFit = true; autoFitNow(); };
   function hideHint() {
     var h = $('hint');
     if (!h || h.hidden) return;
@@ -1623,7 +1628,11 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     if (mq.addEventListener) mq.addEventListener('change', draw);
   }
   resize();
-  fit(isCompact() ? 36 : 0);
+  autoFitNow();
+  /* 글꼴이 늦게 도착하면 줄 높이가 달라져 화면 높이가 바뀐다. 그때 한 번 더 맞춘다. */
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { resize(); });
+  }
 })();
 </script>
 </body>
