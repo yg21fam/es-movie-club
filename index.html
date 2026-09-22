@@ -15,6 +15,7 @@
 <link rel="icon" type="image/png" href="/icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
 <!-- home-screen:end -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" />
@@ -113,6 +114,14 @@ button{cursor:pointer;background:none;border:0}
 .hbtn:hover{border-color:var(--accent);color:var(--ink)}
 .hbtn:disabled{opacity:.35;cursor:default}
 .hbtn svg{width:16px;height:16px;display:block}
+.hbtn b{font-family:var(--mono);font-size:10px;font-weight:600;margin-left:3px}
+.hbtn.live{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.code-big{
+  font-family:var(--mono);font-size:30px;font-weight:500;letter-spacing:.22em;text-align:center;
+  padding:14px 10px;border:1px dashed var(--accent);border-radius:12px;background:var(--accent-soft);
+  color:var(--accent-ink);
+}
+#joinCode{font-family:var(--mono);font-size:19px;letter-spacing:.18em;text-align:center;text-transform:uppercase}
 .hgroup{display:flex;gap:6px;flex:0 0 auto}
 
 /* ---------- main ---------- */
@@ -289,6 +298,9 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     <button class="hbtn" id="addShot" title="장면 추가" aria-label="장면 추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button class="hbtn" id="undo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h9a6 6 0 010 12h-1"/></svg></button>
     <button class="hbtn" id="redo" title="다시하기 (Ctrl+Shift+Z)" aria-label="다시하기" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12h-9a6 6 0 000 12h1"/></svg></button>
+    <button class="hbtn" id="roomBtn" title="방 (같이 편집)" aria-label="방">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 004 17.5V19"/><circle cx="10" cy="8" r="3.2"/><path d="M20 19v-1.5a3.5 3.5 0 00-2.6-3.4"/><path d="M15.5 5.2a3.2 3.2 0 010 5.6"/></svg><b id="roomCount"></b>
+    </button>
     <button class="hbtn" id="theme" title="라이트/다크 전환" aria-label="테마 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/></svg></button>
   </div>
 </header>
@@ -330,6 +342,16 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
    * ------------------------------------------------------------------ */
   var CELL = 48;
   var KEY = 'filmset.plan.v2';
+
+  /* ── 방(같이 편집) 설정 ───────────────────────────────────────────
+     Supabase 프로젝트 › Settings › API 에서
+       Project URL      → SUPA_URL
+       anon public 키   → SUPA_KEY
+     두 값을 넣으면 방 기능이 켜진다. 비워 두면 앱은 평소대로 혼자 쓴다.
+     service_role 키는 절대 넣지 말 것 — 브라우저로 그대로 나간다. */
+  var SUPA_URL = '';
+  var SUPA_KEY = '';
+  var ROOM_KEY = 'filmset.room';
 
   var TYPES = {
     camera: { ko: '카메라', abbr: 'CAM', color: '#3f8bd6', cone: true  },
@@ -405,6 +427,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
    * ------------------------------------------------------------------ */
   var saveTimer = null;
   function save() {
+    roomPush();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       try { localStorage.setItem(KEY, JSON.stringify(state)); }
@@ -706,6 +729,9 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     parts.push('<span>' + state.cols + '×' + state.rows + ' 칸</span>');
     parts.push('<span>1칸 <b>' + state.mpc + 'm</b></span>');
     parts.push('<span>' + Math.round(view.s * 100) + '%</span>');
+    if (room.status === 'on') parts.push('<span>방 <b>' + room.code + '</b> · ' + room.members + '명</span>');
+    else if (room.status === 'connecting') parts.push('<span>방 연결 중…</span>');
+    else if (room.status === 'error') parts.push('<span>방 연결 끊김</span>');
     if (sel) {
       parts.push('<span>' + sel.label + ' <b>' + Math.round(((sel.a * 180 / Math.PI) % 360 + 360) % 360) + '°</b></span>');
       var sub = nearestSubject(sel);
@@ -897,6 +923,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       }
       if (mode === 'move' || mode === 'rotate') { save(); renderPanel(); }
       mode = 'none'; start = null; pinch = null;
+      flushRemote();
     } else if (pcount === 1) {
       mode = 'none'; start = null; pinch = null;
     }
@@ -1527,6 +1554,199 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   }
 
   /* ------------------------------------------------------------------ *
+   *  방 — 여러 기기에서 같이 편집
+   *  움직임은 브로드캐스트로 바로 주고받고, 2초마다 한 번씩만 서버에
+   *  저장한다. 나중에 들어온 사람은 저장된 것을 받아서 시작한다.
+   * ------------------------------------------------------------------ */
+  var room = { code: null, ch: null, client: null, members: 1, status: 'off', applying: false };
+  var pendingRemote = null, pushTimer = null, dbTimer = null;
+
+  var CLIENT_ID = (function () {
+    try {
+      var v = localStorage.getItem('filmset.client');
+      if (v) return v;
+      v = Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('filmset.client', v);
+      return v;
+    } catch (e) { return Math.random().toString(36).slice(2, 10); }
+  })();
+
+  var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   /* 헷갈리는 I O 0 1 은 뺀다 */
+  function makeCode() {
+    var s = '';
+    for (var i = 0; i < 6; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    return s;
+  }
+  function roomConfigured() { return !!(SUPA_URL && SUPA_KEY); }
+  function supa() {
+    if (!roomConfigured() || !window.supabase) return null;
+    if (!room.client) {
+      room.client = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+        realtime: { params: { eventsPerSecond: 12 } }
+      });
+    }
+    return room.client;
+  }
+
+  function livePayload() {
+    return { shots: state.shots, cols: state.cols, rows: state.rows, mpc: state.mpc, by: CLIENT_ID };
+  }
+  function fullPayload() {
+    var p = livePayload();
+    p.project = state.project; p.bg = state.bg; p.bgOpacity = state.bgOpacity;
+    return p;
+  }
+  function applyPayload(p, withBg) {
+    if (!p || !Array.isArray(p.shots) || !p.shots.length) return;
+    room.applying = true;
+    sanitize(p);
+    state.shots = p.shots;
+    if (p.cols) state.cols = p.cols;
+    if (p.rows) state.rows = p.rows;
+    if (p.mpc) state.mpc = p.mpc;
+    if (withBg) {
+      if (p.project) state.project = p.project;
+      if (p.bg !== undefined) { state.bg = p.bg; state.bgOpacity = p.bgOpacity || 0.85; loadBg(); }
+    }
+    state.active = Math.max(0, Math.min(state.active, state.shots.length - 1));
+    if (!findItem(selId)) selId = null;
+    renderTabs(); renderPanel(); draw(); save();
+    room.applying = false;
+  }
+  function receiveLive(p) {
+    if (!p || p.by === CLIENT_ID) return;
+    /* 내가 지금 끌고 있는 중이면 놓을 때까지 미뤄 둔다 */
+    if (mode === 'move' || mode === 'rotate' || mode === 'pre-move') { pendingRemote = p; return; }
+    applyPayload(p, false);
+  }
+  function flushRemote() {
+    if (pendingRemote) { applyPayload(pendingRemote, false); pendingRemote = null; }
+  }
+
+  function roomPush() {
+    if (!room.ch || room.applying) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      if (!room.ch) return;
+      try { room.ch.send({ type: 'broadcast', event: 'plan', payload: livePayload() }); } catch (e) {}
+    }, 180);
+    clearTimeout(dbTimer);
+    dbTimer = setTimeout(roomSaveDb, 2000);
+  }
+  function roomSaveDb() {
+    var c = supa();
+    if (!c || !room.code) return;
+    c.from('rooms').upsert({ code: room.code, data: fullPayload(), updated_at: new Date().toISOString() })
+      .then(function (r) { if (r && r.error) toast('방에 저장하지 못했어요: ' + r.error.message); });
+  }
+  function roomLoadDb(code, onMissing) {
+    var c = supa();
+    if (!c) return;
+    c.from('rooms').select('data').eq('code', code).maybeSingle().then(function (r) {
+      if (r.error) { toast('방을 불러오지 못했어요: ' + r.error.message); return; }
+      if (!r.data) { if (onMissing) onMissing(); return; }
+      applyPayload(r.data.data, true);
+      toast('방 ' + code + ' 의 배치도를 불러왔어요.');
+    });
+  }
+
+  function roomJoin(code, isNew) {
+    var c = supa();
+    if (!c) { toast('방 기능이 아직 설정되지 않았어요.'); return; }
+    roomLeave(true);
+    room.code = code; room.status = 'connecting'; renderRoomBtn();
+    room.ch = c.channel('plan:' + code, {
+      config: { broadcast: { self: false }, presence: { key: CLIENT_ID } }
+    });
+    room.ch.on('broadcast', { event: 'plan' }, function (m) { receiveLive(m.payload); });
+    room.ch.on('presence', { event: 'sync' }, function () {
+      var st = room.ch.presenceState() || {};
+      room.members = Math.max(1, Object.keys(st).length);
+      renderRoomBtn(); renderHud();
+    });
+    room.ch.subscribe(function (st) {
+      if (st === 'SUBSCRIBED') {
+        room.status = 'on';
+        try { room.ch.track({ at: Date.now() }); } catch (e) {}
+        try { localStorage.setItem(ROOM_KEY, code); } catch (e) {}
+        renderRoomBtn(); renderHud();
+        if (isNew) roomSaveDb();
+        else roomLoadDb(code, function () { toast('그 코드의 방이 없어요. 새 방으로 시작합니다.'); roomSaveDb(); });
+      } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') {
+        if (room.status !== 'off') { room.status = 'error'; renderRoomBtn(); }
+      }
+    });
+  }
+  function roomLeave(quiet) {
+    clearTimeout(pushTimer); clearTimeout(dbTimer);
+    if (room.ch) { try { room.ch.unsubscribe(); } catch (e) {} }
+    room.ch = null; room.code = null; room.status = 'off'; room.members = 1; pendingRemote = null;
+    try { localStorage.removeItem(ROOM_KEY); } catch (e) {}
+    if (!quiet) { renderRoomBtn(); renderHud(); }
+  }
+
+  function renderRoomBtn() {
+    var b = $('roomBtn'), n = $('roomCount');
+    if (!b) return;
+    var on = room.status === 'on';
+    b.classList.toggle('live', on);
+    n.textContent = on ? String(room.members) : '';
+    b.title = on ? '방 ' + room.code + ' · ' + room.members + '명'
+      : room.status === 'connecting' ? '방에 연결하는 중' : '방 (같이 편집)';
+  }
+
+  function openRoomPanel() {
+    var body = el('div', null, '');
+    if (!roomConfigured()) {
+      body.appendChild(el('div', 'empty',
+        '방 기능이 아직 켜지지 않았어요. 서버(Supabase) 연결 값을 넣어야 씁니다. ' +
+        'README 의 "방 기능 켜기" 를 따라 하면 됩니다.'));
+      overlay('방 · 같이 편집', body, null);
+      return;
+    }
+    if (room.status === 'on') {
+      body.appendChild(el('div', 'code-big', room.code));
+      body.appendChild(el('div', 'note',
+        '친구에게 이 코드를 알려주세요. 같은 코드로 들어오면 서로 움직이는 게 바로 보입니다. ' +
+        '지금 ' + room.members + '명이 들어와 있어요.'));
+      var foot = el('div', 'ovl-foot');
+      var cp = el('button', 'btn', '코드 복사');
+      cp.onclick = function () {
+        if (navigator.clipboard) navigator.clipboard.writeText(room.code);
+        cp.textContent = '복사됨';
+      };
+      var out = el('button', 'btn danger', '방 나가기');
+      var close = overlay('방 · 같이 편집', body, foot);
+      out.onclick = function () { roomLeave(false); close(); toast('방에서 나왔어요.'); };
+      foot.appendChild(cp); foot.appendChild(out);
+      return;
+    }
+    body.appendChild(el('div', 'empty',
+      '방을 만들면 6자리 코드가 나옵니다. 친구들이 그 코드로 들어오면 같은 배치도를 함께 고칠 수 있어요.'));
+    var inp = el('input');
+    inp.type = 'text'; inp.id = 'joinCode'; inp.maxLength = 6;
+    inp.placeholder = 'ABC123'; inp.autocapitalize = 'characters'; inp.autocomplete = 'off';
+    body.appendChild(field('친구가 알려준 코드', inp));
+    var foot = el('div', 'ovl-foot');
+    var mk = el('button', 'btn primary', '새 방 만들기');
+    var go = el('button', 'btn', '들어가기');
+    foot.appendChild(mk); foot.appendChild(go);
+    var close = overlay('방 · 같이 편집', body, foot);
+    mk.onclick = function () {
+      var code = makeCode();
+      close();
+      roomJoin(code, true);
+      toast('방 ' + code + ' 을 만들었어요. 친구에게 코드를 알려주세요.');
+    };
+    go.onclick = function () {
+      var code = (inp.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length !== 6) { toast('코드 6글자를 정확히 넣어 주세요.'); return; }
+      close();
+      roomJoin(code, false);
+    };
+  }
+
+  /* ------------------------------------------------------------------ *
    *  키보드
    * ------------------------------------------------------------------ */
   document.addEventListener('keydown', function (e) {
@@ -1610,6 +1830,8 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     $('sheetHandle').setAttribute('aria-expanded', String(sheetOpen));
   };
 
+  $('roomBtn').onclick = openRoomPanel;
+
   load();
   applyTheme();
   renderTools();
@@ -1627,6 +1849,13 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     var mq = window.matchMedia('(prefers-color-scheme: dark)');
     if (mq.addEventListener) mq.addEventListener('change', draw);
   }
+  renderRoomBtn();
+  if (roomConfigured()) {
+    var savedRoom = null;
+    try { savedRoom = localStorage.getItem(ROOM_KEY); } catch (e) {}
+    if (savedRoom) roomJoin(savedRoom, false);
+  }
+
   resize();
   autoFitNow();
   /* 글꼴이 늦게 도착하면 줄 높이가 달라져 화면 높이가 바뀐다. 그때 한 번 더 맞춘다. */
