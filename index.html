@@ -1577,15 +1577,54 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     for (var i = 0; i < 6; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
     return s;
   }
-  function roomConfigured() { return !!(SUPA_URL && SUPA_KEY); }
+  var CFG_KEY = 'filmset.supa';
+  /* 설정은 세 군데에서 온다 — 코드에 박아둔 값, 이 기기에 저장한 값, 초대 링크. */
+  function getCfg() {
+    if (SUPA_URL && SUPA_KEY) return { url: SUPA_URL, key: SUPA_KEY };
+    try {
+      var v = JSON.parse(localStorage.getItem(CFG_KEY) || 'null');
+      if (v && v.url && v.key) return v;
+    } catch (e) {}
+    return null;
+  }
+  function setCfg(v) {
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(v)); } catch (e) {}
+    room.client = null;
+  }
+  function roomConfigured() { return !!getCfg(); }
   function supa() {
-    if (!roomConfigured() || !window.supabase) return null;
+    var c = getCfg();
+    if (!c || !window.supabase) return null;
     if (!room.client) {
-      room.client = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+      room.client = window.supabase.createClient(c.url, c.key, {
         realtime: { params: { eventsPerSecond: 12 } }
       });
     }
     return room.client;
+  }
+
+  /* 초대 링크 — 서버 설정과 방 코드를 한 줄에 담는다 */
+  function b64e(t) { return btoa(unescape(encodeURIComponent(t))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function b64d(t) {
+    t = t.replace(/-/g, '+').replace(/_/g, '/');
+    while (t.length % 4) t += '=';
+    return decodeURIComponent(escape(atob(t)));
+  }
+  function inviteLink() {
+    var c = getCfg();
+    if (!c || !room.code) return '';
+    var base = location.origin + location.pathname;
+    return base + '#join=' + room.code + '&s=' + b64e(c.url + '|' + c.key);
+  }
+  function readHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    var out = {};
+    h.split('&').forEach(function (kv) {
+      var i = kv.indexOf('=');
+      if (i > 0) out[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1));
+    });
+    return out;
   }
 
   function livePayload() {
@@ -1699,9 +1738,28 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     var body = el('div', null, '');
     if (!roomConfigured()) {
       body.appendChild(el('div', 'empty',
-        '방 기능이 아직 켜지지 않았어요. 서버(Supabase) 연결 값을 넣어야 씁니다. ' +
-        'README 의 "방 기능 켜기" 를 따라 하면 됩니다.'));
-      overlay('방 · 같이 편집', body, null);
+        '같이 편집하려면 중계 서버가 한 번 필요합니다. Supabase 프로젝트의 ' +
+        'Settings › API 에서 두 값을 복사해 넣어 주세요. 한 번만 넣으면 이 기기는 계속 기억합니다.'));
+      var u = el('input'); u.type = 'text'; u.placeholder = 'https://xxxxxxxx.supabase.co';
+      var k = el('input'); k.type = 'text'; k.placeholder = 'eyJhbGciOi...';
+      body.appendChild(field('Project URL', u));
+      body.appendChild(field('anon public 키', k));
+      body.appendChild(el('div', 'note',
+        'service_role 키는 넣지 마세요. 바로 위에 있는 anon public 키가 맞습니다.'));
+      var foot = el('div', 'ovl-foot');
+      var ok = el('button', 'btn primary', '저장하고 시작');
+      foot.appendChild(ok);
+      var close = overlay('방 · 처음 설정', body, foot);
+      ok.onclick = function () {
+        var url = (u.value || '').trim().replace(/\/+$/, '');
+        var key = (k.value || '').trim();
+        if (!/^https:\/\/.+/.test(url) || key.length < 20) { toast('두 값을 다시 확인해 주세요.'); return; }
+        if (/service_role/.test(key)) { toast('service_role 키는 쓸 수 없어요. anon public 키를 넣어 주세요.'); return; }
+        setCfg({ url: url, key: key });
+        close();
+        toast('설정을 저장했어요. 이제 방을 만들 수 있습니다.');
+        openRoomPanel();
+      };
       return;
     }
     if (room.status === 'on') {
@@ -1709,16 +1767,27 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       body.appendChild(el('div', 'note',
         '친구에게 이 코드를 알려주세요. 같은 코드로 들어오면 서로 움직이는 게 바로 보입니다. ' +
         '지금 ' + room.members + '명이 들어와 있어요.'));
+      var link = inviteLink();
+      var la = el('textarea');
+      la.value = link; la.readOnly = true; la.rows = 2;
+      la.style.cssText = 'min-height:56px;font-size:11px';
+      body.appendChild(field('초대 링크 (이것만 보내면 끝)', la));
+      body.appendChild(el('div', 'note',
+        '이 링크를 받은 친구는 아무 설정 없이 바로 이 방으로 들어옵니다. ' +
+        '단톡방처럼 아무나 보는 곳에는 올리지 마세요.'));
       var foot = el('div', 'ovl-foot');
-      var cp = el('button', 'btn', '코드 복사');
-      cp.onclick = function () {
-        if (navigator.clipboard) navigator.clipboard.writeText(room.code);
-        cp.textContent = '복사됨';
+      var cpl = el('button', 'btn primary', '초대 링크 복사');
+      cpl.onclick = function () {
+        la.select();
+        var done = false;
+        try { done = document.execCommand('copy'); } catch (e) {}
+        if (!done && navigator.clipboard) { navigator.clipboard.writeText(link); done = true; }
+        cpl.textContent = done ? '복사됨' : '길게 눌러 복사하세요';
       };
       var out = el('button', 'btn danger', '방 나가기');
+      foot.appendChild(cpl); foot.appendChild(out);
       var close = overlay('방 · 같이 편집', body, foot);
       out.onclick = function () { roomLeave(false); close(); toast('방에서 나왔어요.'); };
-      foot.appendChild(cp); foot.appendChild(out);
       return;
     }
     body.appendChild(el('div', 'empty',
@@ -1849,11 +1918,28 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     var mq = window.matchMedia('(prefers-color-scheme: dark)');
     if (mq.addEventListener) mq.addEventListener('change', draw);
   }
+  /* 초대 링크로 들어왔으면 설정과 방 코드를 링크에서 받는다 */
+  var hash = readHash(), inviteCode = null;
+  if (hash) {
+    if (hash.s) {
+      try {
+        var parts = b64d(hash.s).split('|');
+        if (parts.length === 2 && /^https:\/\//.test(parts[0])) setCfg({ url: parts[0], key: parts[1] });
+      } catch (e) {}
+    }
+    if (hash.join) inviteCode = hash.join.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    /* 주소창에 키가 남지 않게 지운다 */
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  }
   renderRoomBtn();
   if (roomConfigured()) {
-    var savedRoom = null;
-    try { savedRoom = localStorage.getItem(ROOM_KEY); } catch (e) {}
-    if (savedRoom) roomJoin(savedRoom, false);
+    if (inviteCode && inviteCode.length === 6) {
+      roomJoin(inviteCode, false);
+    } else {
+      var savedRoom = null;
+      try { savedRoom = localStorage.getItem(ROOM_KEY); } catch (e) {}
+      if (savedRoom) roomJoin(savedRoom, false);
+    }
   }
 
   resize();
