@@ -9,17 +9,18 @@
   "lang": "ko",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon.png",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "start_url": "/"
+  "start_url": "./",
+  "scope": "./"
 }
