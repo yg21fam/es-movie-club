@@ -1690,6 +1690,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   }
 
   function roomJoin(code, isNew) {
+    if (EMBEDDED) return;
     var c = supa();
     if (!c) { toast('방 기능이 아직 설정되지 않았어요.'); return; }
     roomLeave(true);
@@ -1730,12 +1731,23 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     var on = room.status === 'on';
     b.classList.toggle('live', on);
     n.textContent = on ? String(room.members) : '';
-    b.title = on ? '방 ' + room.code + ' · ' + room.members + '명'
+    b.title = EMBEDDED ? '방 (배포한 주소에서만 됩니다)'
+      : on ? '방 ' + room.code + ' · ' + room.members + '명'
       : room.status === 'connecting' ? '방에 연결하는 중' : '방 (같이 편집)';
   }
 
   function openRoomPanel() {
     var body = el('div', null, '');
+    if (EMBEDDED) {
+      body.appendChild(el('div', 'empty',
+        '지금은 미리보기 창 안이라 바깥 서버에 연결할 수 없습니다. ' +
+        '같이 편집(방)은 배포한 주소에서 열었을 때만 됩니다.'));
+      body.appendChild(el('div', 'note',
+        '배포한 주소를 휴대폰 브라우저로 열고, 거기서 사람 아이콘을 누르면 방을 만들 수 있어요. ' +
+        '나머지 기능은 여기서도 모두 그대로 동작합니다.'));
+      overlay('방 · 같이 편집', body, null);
+      return;
+    }
     if (!roomConfigured()) {
       body.appendChild(el('div', 'empty',
         '같이 편집하려면 중계 서버가 한 번 필요합니다. Supabase 프로젝트의 ' +
