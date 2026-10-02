@@ -363,11 +363,11 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     mic:    { ko: '마이크', abbr: 'MIC', color: '#8d7ae0', cone: true  },
     light:  { ko: '조명',   abbr: 'LT',  color: '#e0982f', cone: true  },
     /* 교실 — 바닥에 깔리는 것들. 이름표는 기본으로 붙이지 않는다. */
-    wall:   { ko: '벽',     abbr: 'WAL', color: '#8e857a', cone: false, floor: true, plain: true },
-    window: { ko: '창문',   abbr: 'WIN', color: '#6aaed6', cone: false, floor: true, plain: true },
-    desk:   { ko: '책상',   abbr: 'DSK', color: '#b5894e', cone: false, floor: true, plain: true },
-    board:  { ko: '칠판',   abbr: 'BRD', color: '#3f7d5a', cone: false, floor: true, plain: true },
-    locker: { ko: '사물함', abbr: 'LCK', color: '#78808f', cone: false, floor: true, plain: true }
+    wall:   { ko: '벽',     abbr: 'WAL', color: '#7a7064', cone: false, floor: true, plain: true },
+    window: { ko: '창문',   abbr: 'WIN', color: '#3f93c7', cone: false, floor: true, plain: true },
+    desk:   { ko: '책상',   abbr: 'DSK', color: '#a9762f', cone: false, floor: true, plain: true },
+    board:  { ko: '칠판',   abbr: 'BRD', color: '#2f6b4a', cone: false, floor: true, plain: true },
+    locker: { ko: '사물함', abbr: 'LCK', color: '#6b7383', cone: false, floor: true, plain: true }
   };
   var EQUIP  = ['camera', 'actor', 'mic', 'light'];
   var STRUCT = ['wall', 'window', 'desk', 'board', 'locker'];
@@ -571,48 +571,54 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       g.beginPath(); g.moveTo(r * 0.38, -r * 0.13); g.lineTo(r * 0.66, 0); g.lineTo(r * 0.38, r * 0.13); g.closePath(); g.fill();
 
     } else if (type === 'wall') {
-      var hw = r * 1.25;                       /* 한 칸을 꽉 채우는 길이 */
+      var hw = r * 1.25, th = r * 0.52;        /* 길이는 한 칸, 두께는 넉넉히 */
       g.fillStyle = c;
-      rr(g, -hw, -r * 0.26, hw * 2, r * 0.52, r * 0.07); g.fill();
-      g.strokeStyle = 'rgba(0,0,0,.22)'; g.lineWidth = r * 0.07;
-      g.beginPath(); g.moveTo(-hw, 0); g.lineTo(hw, 0); g.stroke();
+      rr(g, -hw, -th, hw * 2, th * 2, r * 0.08); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = r * 0.09; g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = r * 0.1;
+      g.beginPath(); g.moveTo(-hw * 0.9, 0); g.lineTo(hw * 0.9, 0); g.stroke();
 
     } else if (type === 'window') {
-      var hw2 = r * 1.25;
-      g.fillStyle = 'rgba(255,255,255,.85)';
-      rr(g, -hw2, -r * 0.26, hw2 * 2, r * 0.52, r * 0.07); g.fill();
-      g.strokeStyle = c; g.lineWidth = r * 0.16;
-      g.beginPath(); g.moveTo(-hw2, -r * 0.18); g.lineTo(hw2, -r * 0.18); g.stroke();
-      g.beginPath(); g.moveTo(-hw2, r * 0.18); g.lineTo(hw2, r * 0.18); g.stroke();
+      var hw2 = r * 1.25, tw = r * 0.52;
+      g.fillStyle = '#e8f4fb';
+      rr(g, -hw2, -tw, hw2 * 2, tw * 2, r * 0.08); g.fill();
+      g.strokeStyle = c; g.lineWidth = r * 0.18; g.stroke();
+      g.strokeStyle = c; g.lineWidth = r * 0.14;
+      g.beginPath(); g.moveTo(-hw2, 0); g.lineTo(hw2, 0); g.stroke();
+      g.beginPath(); g.moveTo(0, -tw); g.lineTo(0, tw); g.stroke();
 
     } else if (type === 'desk') {
       g.fillStyle = c;
-      rr(g, -r * 0.8, -r * 0.55, r * 1.6, r * 1.1, r * 0.12); g.fill();
-      g.strokeStyle = 'rgba(0,0,0,.2)'; g.lineWidth = r * 0.08;
-      g.beginPath(); g.moveTo(-r * 0.8, -r * 0.2); g.lineTo(r * 0.8, -r * 0.2); g.stroke();
-      g.fillStyle = 'rgba(0,0,0,.3)';                      /* 의자 */
-      g.beginPath(); g.arc(-r * 1.15, 0, r * 0.3, 0, 6.2832); g.fill();
+      rr(g, -r * 0.95, -r * 0.68, r * 1.9, r * 1.36, r * 0.14); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.32)'; g.lineWidth = r * 0.09; g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = r * 0.1;
+      g.beginPath(); g.moveTo(-r * 0.8, -r * 0.26); g.lineTo(r * 0.8, -r * 0.26); g.stroke();
+      g.fillStyle = '#5d6471';                             /* 의자 */
+      g.beginPath(); g.arc(-r * 1.25, 0, r * 0.42, 0, 6.2832); g.fill();
 
     } else if (type === 'board') {
-      var hb = r * 1.25;
+      var hb = r * 1.25, tb = r * 0.55;
       g.fillStyle = c;
-      rr(g, -hb, -r * 0.3, hb * 2, r * 0.6, r * 0.08); g.fill();
-      g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = r * 0.07;
-      g.beginPath(); g.moveTo(-hb * 0.75, -r * 0.05); g.lineTo(hb * 0.3, -r * 0.05); g.stroke();
-      g.beginPath(); g.moveTo(-hb * 0.5, r * 0.12); g.lineTo(hb * 0.6, r * 0.12); g.stroke();
+      rr(g, -hb, -tb, hb * 2, tb * 2, r * 0.09); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = r * 0.09; g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = r * 0.1;
+      g.beginPath(); g.moveTo(-hb * 0.72, -r * 0.16); g.lineTo(hb * 0.35, -r * 0.16); g.stroke();
+      g.beginPath(); g.moveTo(-hb * 0.45, r * 0.2); g.lineTo(hb * 0.62, r * 0.2); g.stroke();
 
     } else if (type === 'locker') {
+      var hl = r * 1.25, tl = r * 0.58;
       g.fillStyle = c;
-      rr(g, -r * 1.1, -r * 0.42, r * 2.2, r * 0.84, r * 0.08); g.fill();
-      g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = r * 0.08;
+      rr(g, -hl, -tl, hl * 2, tl * 2, r * 0.09); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.32)'; g.lineWidth = r * 0.09; g.stroke();
+      g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = r * 0.1;
       for (var li = 1; li < 3; li++) {
-        var lx = -r * 1.1 + (r * 2.2 / 3) * li;
-        g.beginPath(); g.moveTo(lx, -r * 0.42); g.lineTo(lx, r * 0.42); g.stroke();
+        var lx = -hl + (hl * 2 / 3) * li;
+        g.beginPath(); g.moveTo(lx, -tl); g.lineTo(lx, tl); g.stroke();
       }
-      g.fillStyle = 'rgba(255,255,255,.5)';
+      g.fillStyle = 'rgba(255,255,255,.75)';
       for (var lj = 0; lj < 3; lj++) {
-        var cx = -r * 1.1 + (r * 2.2 / 3) * (lj + 0.72);
-        g.beginPath(); g.arc(cx, 0, r * 0.07, 0, 6.2832); g.fill();
+        var cx = -hl + (hl * 2 / 3) * (lj + 0.72);
+        g.beginPath(); g.arc(cx, 0, r * 0.12, 0, 6.2832); g.fill();
       }
     }
   }
