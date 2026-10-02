@@ -399,7 +399,8 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     return {
       id: uid(), type: type, x: x, y: y, a: angle || 0,
       label: label || autoLabel(type), note: '',
-      spread: d.spread, reach: d.reach, temp: d.temp
+      spread: d.spread, reach: d.reach, temp: d.temp,
+      len: TYPES[type].floor ? 1 : undefined
     };
   }
   function autoLabel(type) {
@@ -409,6 +410,13 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     return TYPES[type].ko + (n + 1);
   }
   function cell(c, r) { return { x: (c + 0.5) * CELL, y: (r + 0.5) * CELL }; }
+  function itemLen(it) { return TYPES[it.type].floor ? (it.len || 1) : 1; }
+  /* 늘어나는 것들의 양 끝 점 */
+  function endPoints(it) {
+    var h = itemLen(it) * CELL / 2;
+    var dx = Math.cos(it.a) * h, dy = Math.sin(it.a) * h;
+    return [{ x: it.x - dx, y: it.y - dy }, { x: it.x + dx, y: it.y + dy }];
+  }
 
   function defaultState() {
     var st = {
@@ -535,7 +543,8 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     g.closePath();
   }
 
-  function drawGlyph(g, type, r) {
+  function drawGlyph(g, type, r, len) {
+    len = len || 1;
     var c = TYPES[type].color;
     g.lineJoin = 'round'; g.lineCap = 'round';
     if (type === 'camera') {
@@ -571,7 +580,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       g.beginPath(); g.moveTo(r * 0.38, -r * 0.13); g.lineTo(r * 0.66, 0); g.lineTo(r * 0.38, r * 0.13); g.closePath(); g.fill();
 
     } else if (type === 'wall') {
-      var hw = r * 1.25, th = r * 0.52;        /* 길이는 한 칸, 두께는 넉넉히 */
+      var hw = r * 1.25 * len, th = r * 0.52;        /* 길이는 한 칸, 두께는 넉넉히 */
       g.fillStyle = c;
       rr(g, -hw, -th, hw * 2, th * 2, r * 0.08); g.fill();
       g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = r * 0.09; g.stroke();
@@ -579,7 +588,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       g.beginPath(); g.moveTo(-hw * 0.9, 0); g.lineTo(hw * 0.9, 0); g.stroke();
 
     } else if (type === 'window') {
-      var hw2 = r * 1.25, tw = r * 0.52;
+      var hw2 = r * 1.25 * len, tw = r * 0.52;
       g.fillStyle = '#e8f4fb';
       rr(g, -hw2, -tw, hw2 * 2, tw * 2, r * 0.08); g.fill();
       g.strokeStyle = c; g.lineWidth = r * 0.18; g.stroke();
@@ -589,15 +598,15 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
 
     } else if (type === 'desk') {
       g.fillStyle = c;
-      rr(g, -r * 0.95, -r * 0.68, r * 1.9, r * 1.36, r * 0.14); g.fill();
+      rr(g, -r * 1.25 * len, -r * 0.68, r * 2.5 * len, r * 1.36, r * 0.14); g.fill();
       g.strokeStyle = 'rgba(0,0,0,.32)'; g.lineWidth = r * 0.09; g.stroke();
       g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = r * 0.1;
-      g.beginPath(); g.moveTo(-r * 0.8, -r * 0.26); g.lineTo(r * 0.8, -r * 0.26); g.stroke();
+      g.beginPath(); g.moveTo(-r * 1.1 * len, -r * 0.26); g.lineTo(r * 1.1 * len, -r * 0.26); g.stroke();
       g.fillStyle = '#5d6471';                             /* 의자 */
-      g.beginPath(); g.arc(-r * 1.25, 0, r * 0.42, 0, 6.2832); g.fill();
+      g.beginPath(); g.arc(-r * (1.25 * len + 0.3), 0, r * 0.42, 0, 6.2832); g.fill();
 
     } else if (type === 'board') {
-      var hb = r * 1.25, tb = r * 0.55;
+      var hb = r * 1.25 * len, tb = r * 0.55;
       g.fillStyle = c;
       rr(g, -hb, -tb, hb * 2, tb * 2, r * 0.09); g.fill();
       g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = r * 0.09; g.stroke();
@@ -606,18 +615,19 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       g.beginPath(); g.moveTo(-hb * 0.45, r * 0.2); g.lineTo(hb * 0.62, r * 0.2); g.stroke();
 
     } else if (type === 'locker') {
-      var hl = r * 1.25, tl = r * 0.58;
+      var hl = r * 1.25 * len, tl = r * 0.58;
       g.fillStyle = c;
       rr(g, -hl, -tl, hl * 2, tl * 2, r * 0.09); g.fill();
       g.strokeStyle = 'rgba(0,0,0,.32)'; g.lineWidth = r * 0.09; g.stroke();
+      var cells = Math.max(3, Math.round(3 * len));
       g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = r * 0.1;
-      for (var li = 1; li < 3; li++) {
-        var lx = -hl + (hl * 2 / 3) * li;
+      for (var li = 1; li < cells; li++) {
+        var lx = -hl + (hl * 2 / cells) * li;
         g.beginPath(); g.moveTo(lx, -tl); g.lineTo(lx, tl); g.stroke();
       }
       g.fillStyle = 'rgba(255,255,255,.75)';
-      for (var lj = 0; lj < 3; lj++) {
-        var cx = -hl + (hl * 2 / 3) * (lj + 0.72);
+      for (var lj = 0; lj < cells; lj++) {
+        var cx = -hl + (hl * 2 / cells) * (lj + 0.72);
         g.beginPath(); g.arc(cx, 0, r * 0.12, 0, 6.2832); g.fill();
       }
     }
@@ -657,7 +667,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     g.save();
     g.translate(it.x, it.y); g.rotate(it.a);
     g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 5 * k; g.shadowOffsetY = 1.5 * k;
-    drawGlyph(g, it.type, r);
+    drawGlyph(g, it.type, r, itemLen(it));
     g.restore();
     if (showLabel && it.label) {
       var fs = 12 * k;
@@ -749,7 +759,20 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     });
 
     var sel = selected();
-    if (sel) {
+    if (sel && TYPES[sel.type].floor) {
+      var e = endPoints(sel);
+      ctx.save();
+      ctx.strokeStyle = pal.accent; ctx.lineWidth = 2 * k;
+      ctx.setLineDash([5 * k, 4 * k]); ctx.globalAlpha = 0.75;
+      ctx.beginPath(); ctx.moveTo(e[0].x, e[0].y); ctx.lineTo(e[1].x, e[1].y); ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.fillStyle = pal.accent; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5 * k;
+      for (var ei = 0; ei < 2; ei++) {
+        ctx.beginPath(); ctx.arc(e[ei].x, e[ei].y, 11 * k, 0, 6.2832); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    } else if (sel) {
       var r = CELL * 0.36;
       ctx.save();
       ctx.strokeStyle = pal.accent; ctx.lineWidth = 2 * k;
@@ -859,15 +882,36 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   /* ------------------------------------------------------------------ *
    *  포인터 — 탭으로 배치, 끌어서 이동/회전/화면 이동, 두 손가락 확대
    * ------------------------------------------------------------------ */
-  var pointers = {}, pcount = 0, mode = 'none', start = null, dragOff = null;
+  var pointers = {}, pcount = 0, mode = 'none', start = null, dragOff = null, stretchAnchor = null;
   var pinch = null, moved = false, willPlace = false;
 
+  /* 점까지의 거리 — 길게 늘인 것은 선분까지의 거리로 본다 */
+  function distTo(it, p) {
+    if (TYPES[it.type].floor && itemLen(it) > 1.01) {
+      var e = endPoints(it), ax = e[0].x, ay = e[0].y, bx = e[1].x, by = e[1].y;
+      var vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy;
+      var t = L2 ? ((p.x - ax) * vx + (p.y - ay) * vy) / L2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (ax + vx * t), p.y - (ay + vy * t));
+    }
+    return Math.hypot(it.x - p.x, it.y - p.y);
+  }
   function hitTest(p) {
     var L = items(), r = Math.max(CELL * 0.5, 22 / view.s);
     for (var i = L.length - 1; i >= 0; i--) {
-      if (Math.hypot(L[i].x - p.x, L[i].y - p.y) <= r) return L[i];
+      if (distTo(L[i], p) <= r) return L[i];
     }
     return null;
+  }
+  /* 선택한 것의 양 끝 손잡이를 잡았는가 */
+  function grabbedEnd(sel, screen) {
+    if (!sel || !TYPES[sel.type].floor) return -1;
+    var e = endPoints(sel);
+    for (var i = 0; i < 2; i++) {
+      var sx = e[i].x * view.s + view.tx, sy = e[i].y * view.s + view.ty;
+      if (Math.hypot(sx - screen.x, sy - screen.y) <= 26) return i;
+    }
+    return -1;
   }
   function overHandle(sel, screen) {
     if (!sel) return false;
@@ -902,6 +946,13 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     var sel = selected();
 
     if (tool === 'measure') { measure = { a: p, b: p }; mode = 'measure'; draw(); return; }
+    var grab = grabbedEnd(sel, sp);
+    if (grab >= 0) {
+      pushUndo();
+      mode = 'stretch';
+      stretchAnchor = endPoints(sel)[1 - grab];   /* 반대쪽 끝은 고정 */
+      return;
+    }
     if (sel && overHandle(sel, sp)) { pushUndo(); mode = 'rotate'; return; }
 
     var hit = hitTest(p);
@@ -949,6 +1000,22 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       if (sel) { sel.a = Math.atan2(p.y - sel.y, p.x - sel.x); draw(); renderRotReadout(); }
       return;
     }
+    if (mode === 'stretch') {
+      var it2 = selected();
+      if (it2 && stretchAnchor) {
+        var q = clampToFloor(p);
+        if (state.snap) q = snapPt(q);
+        var dx2 = q.x - stretchAnchor.x, dy2 = q.y - stretchAnchor.y;
+        var d2 = Math.hypot(dx2, dy2);
+        if (d2 < CELL * 0.5) d2 = CELL * 0.5;
+        it2.a = Math.atan2(dy2, dx2);
+        it2.len = d2 / CELL;
+        it2.x = stretchAnchor.x + Math.cos(it2.a) * d2 / 2;
+        it2.y = stretchAnchor.y + Math.sin(it2.a) * d2 / 2;
+        draw(); renderRotReadout(); save();
+      }
+      return;
+    }
     if (mode === 'pre-move' && moved) { pushUndo(); mode = 'move'; }
     if (mode === 'move') {
       var it = selected();
@@ -986,7 +1053,8 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
         }
         draw();
       }
-      if (mode === 'move' || mode === 'rotate') { save(); renderPanel(); }
+      if (mode === 'move' || mode === 'rotate' || mode === 'stretch') { save(); renderPanel(); }
+      stretchAnchor = null;
       mode = 'none'; start = null; pinch = null;
       flushRemote();
     } else if (pcount === 1) {
@@ -1024,7 +1092,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, n, n);
     g.translate(n / 2, n / 2); g.rotate(-Math.PI / 2);
-    drawGlyph(g, type, n * 0.33);
+    drawGlyph(g, type, n * 0.33, 1);
   }
   function renderTools() {
     var host = $('tools');
@@ -1199,6 +1267,28 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
           { label: '따뜻한 색', value: 3200 }, { label: '하얀 색', value: 5600 }
         ], sel.temp || 3200, function (v) { pushUndo(); sel.temp = v; renderPanel(); draw(); save(); })));
       }
+      if (TYPES[sel.type].floor) {
+        var lw = el('div', 'row');
+        var ls = el('input'); ls.type = 'range'; ls.min = '1'; ls.max = '24'; ls.step = '1';
+        ls.value = String(Math.max(1, Math.round(itemLen(sel))));
+        var lo = el('b', null, '');
+        lo.style.cssText = 'font-family:var(--mono);min-width:56px;text-align:right;font-weight:500';
+        function lenText() {
+          return Math.round(itemLen(sel) * 10) / 10 + '칸 · ' + (itemLen(sel) * state.mpc).toFixed(1) + 'm';
+        }
+        lo.textContent = lenText();
+        ls.oninput = function () {
+          var e0 = endPoints(sel)[0];                 /* 한쪽 끝을 고정하고 늘인다 */
+          sel.len = parseFloat(ls.value);
+          sel.x = e0.x + Math.cos(sel.a) * sel.len * CELL / 2;
+          sel.y = e0.y + Math.sin(sel.a) * sel.len * CELL / 2;
+          lo.textContent = lenText();
+          draw(); save();
+        };
+        lw.appendChild(ls); lw.appendChild(lo);
+        card.appendChild(field('길이', lw));
+        card.appendChild(el('div', 'note', '도면에서 양 끝의 동그라미를 끌어도 늘어나고, 끄는 방향으로 돌아갑니다.'));
+      }
       if (TYPES[sel.type].cone) {
         var rw = el('div', 'row');
         var rs = el('input'); rs.type = 'range'; rs.min = '1'; rs.max = '14'; rs.step = '0.5';
@@ -1225,7 +1315,8 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       dup.onclick = function () {
         pushUndo();
         var c = JSON.parse(JSON.stringify(sel));
-        c.id = uid(); c.x += CELL; c.label = sel.label + "'";
+        c.id = uid(); c.label = sel.label ? sel.label + "'" : '';
+        c.x += Math.sin(sel.a) * CELL || CELL; c.y += -Math.cos(sel.a) * CELL || 0;
         items().push(c); selId = c.id;
         renderPanel(); renderTabs(); draw(); save();
       };
@@ -1545,7 +1636,7 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
       g.save();
       g.translate(x + 13, y);
       g.rotate(-Math.PI / 2);
-      drawGlyph(g, t, 10);
+      drawGlyph(g, t, 10, 1);
       g.restore();
       g.fillStyle = pal.ink;
       g.fillText(text, x + 28, y + 1);
