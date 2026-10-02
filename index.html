@@ -14,6 +14,17 @@
 <link rel="apple-touch-icon" href="icon.png" />
 <link rel="icon" type="image/png" href="icon.png" />
 <link rel="manifest" href="site.webmanifest" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="ES Movie Club" />
+<meta property="og:title" content="촬영 배치도 · ES Movie Club" />
+<meta property="og:description" content="바닥 그림 위에 카메라·배우·마이크·조명을 놓아보세요. 방을 만들면 친구들과 같이 편집할 수 있어요." />
+<meta property="og:url" content="https://yg21fam.github.io/es-movie-club/" />
+<meta property="og:image" content="https://yg21fam.github.io/es-movie-club/share.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="ko_KR" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="description" content="바닥 그림 위에 카메라·배우·마이크·조명을 놓아보는 촬영 배치도. 방을 만들면 친구들과 같이 편집할 수 있어요." />
 <!-- home-screen:end -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1321,6 +1332,8 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   var EMBEDDED = (function () {
     try { return window.self !== window.top; } catch (e) { return true; }
   })();
+  /* 카톡·인스타 등 앱 안에서 열린 브라우저. 파일 저장이 막혀 있는 경우가 많다. */
+  var INAPP = /KAKAOTALK|Instagram|FBAN|FBAV|FB_IAB|Line\/|NAVER\(inapp/i.test(navigator.userAgent || '');
 
   function overlay(title, body, foot) {
     var back = el('div', 'ovl');
@@ -1375,7 +1388,11 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
     catch (e) { done(null); }
   }
   function deliver(name, blob, text) {
-    if (!EMBEDDED) { download(blob, name); return; }
+    if (!EMBEDDED && !INAPP) { download(blob, name); return; }
+    if (INAPP && !EMBEDDED) {
+      if (text != null) showText(text, name); else showImage(blob, name);
+      return;
+    }
     withDownloads(function (d) {
       var fallback = function () { if (text != null) showText(text, name); else showImage(blob, name); };
       if (!d) { fallback(); return; }
@@ -1921,6 +1938,18 @@ details.fold>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px
   loadBg();
   syncHistoryButtons();
   try { if (localStorage.getItem(KEY + '.hint')) $('hint').hidden = true; } catch (e) {}
+
+  /* 카톡 창에서는 홈 화면 추가가 안 된다. 한 번만 알려준다. */
+  if (INAPP && !EMBEDDED) {
+    var told = false;
+    try { told = !!localStorage.getItem('filmset.inapp'); } catch (e) {}
+    if (!told) {
+      setTimeout(function () {
+        toast('카톡 창에서 열렸어요. 홈 화면에 추가하려면 오른쪽 아래 메뉴에서 Safari(또는 Chrome)로 열어 주세요.');
+        try { localStorage.setItem('filmset.inapp', '1'); } catch (e) {}
+      }, 2500);
+    }
+  }
 
   if (window.ResizeObserver) {
     new ResizeObserver(function () { resize(); }).observe(stage);
